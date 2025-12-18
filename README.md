@@ -8,7 +8,7 @@ This project is a full-stack technical solution designed to automate the extract
 ## 🛠️ The Tech Stack
 * **Backend:** FastAPI (Python) - Chosen for its high performance, native asynchronous support, and automatic OpenAPI documentation.
 * **OCR Engine:** Pytesseract (Tesseract OCR) - An industry-standard open-source engine used for initial text localization and character recognition.
-* **Data Structuring:** OpenAI GPT-4o-mini - Utilized as a "Semantic Brain" to parse messy OCR output into clean, structured data.
+* **Data Structuring:** Gemini-3-flash-preview - Utilized as a "Semantic Brain" to parse messy OCR output into clean, structured data.
 * **Frontend:** HTML5 & Tailwind CSS (via CDN) - Provides a modern, responsive UI without requiring a complex Node.js build pipeline.
 
 ---
@@ -60,7 +60,7 @@ pip install -r requirements.txt
 source root_directory/.env
 
 # Add your API key in the .env file
-OPENAI_API_KEY=your_actual_key_here
+GEMINI_API_KEY=your_actual_key_here
 ```
 
 ### 4: Run the Application
