@@ -4,5 +4,6 @@ python-multipart
 pytesseract
 pillow
 jinja2
-openai  # or langchain / ollama
+openai
 python-dotenv
+google-generativeai
