@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Leaflet Processor</title>
+</head>
+<body class="bg-slate-50 font-sans p-10">
+    <div class="max-w-5xl mx-auto">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+            <h1 class="text-2xl font-bold text-slate-800 mb-2">Product Extraction Pipeline</h1>
+            <p class="text-slate-500 mb-6">Upload a leaflet image to generate structured data.</p>
+
+            <div class="flex items-center gap-4 mb-10">
+                <input type="file" id="fileInput" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
+                <button onclick="processImage()" id="btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-300 transition-all">
+                    Process Image
+                </button>
+            </div>
+
+            <div class="overflow-hidden rounded-lg border border-slate-200">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-100">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Product</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Price</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsTable" class="divide-y divide-slate-200 bg-white">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function processImage() {
+            const fileInput = document.getElementById('fileInput');
+            const btn = document.getElementById('btn');
+            const table = document.getElementById('resultsTable');
+            
+            if (!fileInput.files[0]) return alert("Select an image first!");
+
+            btn.disabled = true;
+            btn.innerText = "Processing...";
+            table.innerHTML = "";
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/process', { method: 'POST', body: formData });
+                const data = await response.json();
+
+                data.forEach(item => {
+                    const row = `
+                        <tr onclick="alert('Proceeding with: ' + '${item.name}')" class="hover:bg-blue-50 cursor-pointer group">
+                            <td class="px-6 py-4 text-sm text-slate-700 font-medium">${item.name}</td>
+                            <td class="px-6 py-4 text-sm text-green-600 font-bold">${item.price}</td>
+                        </tr>`;
+                    table.innerHTML += row;
+                });
+            } catch (e) {
+                alert("Error processing image.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Process Image";
+            }
+        }
+    </script>
+</body>
+</html>

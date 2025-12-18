@@ -1,0 +1,4 @@
+.env
+leafletEnv/
+.vercel/
+__pycache__/
