@@ -17,22 +17,27 @@ This project is a full-stack technical solution designed to automate the extract
 
 ### 1. Project Architecture & Organization
 **Decision:** I implemented a modular folder structure, separating core logic into a `services/` directory and routing into `main.py`.
+
 **Why:** This follows the **Separation of Concerns** principle. By decoupling the OCR and LLM logic from the web framework, the system is easier to test and maintain. If the OCR engine needs to be upgraded in the future, only the service file requires modification.
 
 ### 2. Image Pre-processing
 **Decision:** I integrated the `Pillow` library to convert images to grayscale and increase contrast before sending them to the OCR engine.
+
 **Why:** Retail leaflets often use white text inside dark or red circles (as seen in the provided image). Standard OCR can struggle with these high-contrast areas. Pre-processing "flattens" the image, making character boundaries clearer for Tesseract.
 
 ### 3. OCR (Optical Character Recognition)
 **Decision:** I utilized Pytesseract with specific configuration flags (`--psm 3`) to handle automatic page segmentation.
+
 **Why:** Since retail leaflets are non-linear (grid-based layouts), the OCR needs to look for sparse text fragments rather than traditional top-to-bottom sentences.
 
 ### 4. Semantic Parsing (LLM Layer)
 **Decision:** I chose an LLM over Regular Expressions (Regex) for data structuring.
+
 **Why:** Leaflets often place weights (e.g., "500g") closer to the product name than the actual price ($2.49). An LLM uses Natural Language Understanding to distinguish between a "unit of measurement" and a "monetary value," which is nearly impossible to do reliably with Regex in a noisy OCR environment.
 
 ### 5. Frontend Interaction
 **Decision:** I built a dynamic table with clickable rows using Tailwind CSS.
+
 **Why:** Per the assessment requirements, this simulates a real-world "human-in-the-loop" workflow where a user can select specific extracted items for further downstream processing (like inventory updates or price matching).
 
 ---
