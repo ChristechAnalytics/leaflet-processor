@@ -98,4 +98,6 @@ This app needs a **persistent container**, not a serverless function platform: i
 3. When prompted, set the `GEMINI_API_KEY` environment variable (it's marked `sync: false` in the blueprint so Render will ask for it rather than storing it in the repo).
 4. Deploy. Render sets `$PORT` automatically, which the Dockerfile's `CMD` already respects.
 
+`render.yaml` pins `plan: free` so this deploys on Render's free web service instance (spins down on inactivity, wakes on the next request) — it costs $0. Render may still ask for a card during account signup for identity verification; that's separate from billing, and you won't be charged as long as you stay on the free instance type.
+
 **Note on persistence:** by default, Render's web service filesystem is ephemeral — `data/app.db` resets on every redeploy or restart. The catalog reseeds itself automatically from `data/catalog.json` on startup, but any confirmed HITL selections will be lost when the container restarts. For real persistence, attach a [Render persistent disk](https://render.com/docs/disks) mounted at `/app/data`, or migrate from SQLite to a managed database (e.g. Render's free Postgres tier).
