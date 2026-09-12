@@ -85,3 +85,17 @@ http://127.0.0.1:8000
 ```
 
 On first run, a SQLite database is created at `data/app.db` and seeded with the synthetic catalog from `data/catalog.json`. Upload a leaflet image, review the top 5 catalog matches per extracted product, and click "Confirm match" to persist the selection back to the database.
+
+---
+
+## ☁️ Deployment
+
+This app needs a **persistent container**, not a serverless function platform: it shells out to the `tesseract` OS binary (installed via `apt-get` in the [Dockerfile](Dockerfile)) and writes to a local SQLite file, neither of which a serverless runtime like Vercel supports (no system package installs, and the filesystem is read-only outside of an ephemeral `/tmp`). Deploy the Docker image instead, to a host that runs a long-lived container — e.g. **Render**, Railway, or Fly.io.
+
+### Deploying to Render
+1. Push this repo to GitHub (if not already).
+2. In the Render dashboard, choose **New + Blueprint** and point it at this repo — it will pick up [render.yaml](render.yaml) and build the [Dockerfile](Dockerfile) automatically.
+3. When prompted, set the `GEMINI_API_KEY` environment variable (it's marked `sync: false` in the blueprint so Render will ask for it rather than storing it in the repo).
+4. Deploy. Render sets `$PORT` automatically, which the Dockerfile's `CMD` already respects.
+
+**Note on persistence:** by default, Render's web service filesystem is ephemeral — `data/app.db` resets on every redeploy or restart. The catalog reseeds itself automatically from `data/catalog.json` on startup, but any confirmed HITL selections will be lost when the container restarts. For real persistence, attach a [Render persistent disk](https://render.com/docs/disks) mounted at `/app/data`, or migrate from SQLite to a managed database (e.g. Render's free Postgres tier).
