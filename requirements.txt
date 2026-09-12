@@ -1,8 +1,6 @@
 fastapi
 uvicorn
 python-multipart
-pytesseract
-pillow
 jinja2
 openai
 python-dotenv

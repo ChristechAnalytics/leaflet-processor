@@ -2,8 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Request, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from app.services.ocr_engine import run_ocr
-from app.services.llm_parser import parse_text_to_json
+from app.services.llm_parser import parse_leaflet_image
 from app.services.catalog_matcher import get_top_matches
 from app.services import db
 import json
@@ -26,19 +25,16 @@ async def index(request: Request):
 
 @app.post("/process")
 async def process_image(file: UploadFile = File(...)):
-    # 1. OCR
+    # 1. Vision LLM extraction (Gemini reads the leaflet image directly)
     content = await file.read()
-    raw_text = run_ocr(content)
+    structured_data = parse_leaflet_image(content, file.content_type or "image/jpeg")
 
-    # 2. LLM Structuring
-    structured_data = parse_text_to_json(raw_text)
-
-    # 3. Save raw extraction to data.json for continuity/debugging
+    # 2. Save raw extraction to data.json for continuity/debugging
     output_path = os.path.join("data", "data.json")
     with open(output_path, "w") as f:
         json.dump(structured_data, f, indent=4)
 
-    # 4. Persist leaflet + extracted products, run catalog matching
+    # 3. Persist leaflet + extracted products, run catalog matching
     leaflet_id = db.create_leaflet(file.filename)
 
     items = []

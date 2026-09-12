@@ -1,1 +1,38 @@
-[]
+[
+    {
+        "name": "HILLCREST RICE CAKE BARS 5PK/90G Chocolate or Strawberry",
+        "price": "$1.99"
+    },
+    {
+        "name": "THE CAKE STALL BANANA BREAD 5PK/500G",
+        "price": "$4.49"
+    },
+    {
+        "name": "ORGANIC KOMBUCHA 330ML Ginger & Lemon or Raspberry & Lemon",
+        "price": "$2.49"
+    },
+    {
+        "name": "EL TORA BLACK BEANS 400G",
+        "price": "$1.29"
+    },
+    {
+        "name": "BROOKLEA VANILLA CUSTARD POUCH 70G",
+        "price": "$0.99"
+    },
+    {
+        "name": "INTERNATIONAL CUISINE HEALTH & VITALITY LAMB HOT POT 290G",
+        "price": "$2.79"
+    },
+    {
+        "name": "POWER FORCE BRIGHT & CLEAN BATHROOM CLEANING WIPES 100PK",
+        "price": "$3.49"
+    },
+    {
+        "name": "COLGATE TOTAL TOOTHPASTE 80G",
+        "price": "$2.09"
+    },
+    {
+        "name": "JUST ORGANIC PASSATA 700G",
+        "price": "$1.99"
+    }
+]

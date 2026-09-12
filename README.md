@@ -7,9 +7,8 @@ This project is a full-stack technical solution designed to automate the extract
 
 ## 🛠️ The Tech Stack
 * **Backend:** FastAPI (Python) - Chosen for its high performance, native asynchronous support, and automatic OpenAPI documentation.
-* **OCR Engine:** Pytesseract (Tesseract OCR) - An industry-standard open-source engine used for initial text localization and character recognition.
-* **Data Structuring:** Gemini-3-flash-preview (via its OpenAI-compatible API, using the `openai` SDK) - Utilized as a "Semantic Brain" to parse messy OCR output into clean, structured data.
-* **Catalog Matching:** RapidFuzz - Fuzzy string matching ranks the 5 closest catalog products for each extracted item, since leaflet OCR names rarely match catalog names exactly.
+* **Vision Extraction:** Gemini-3-flash-preview (via its OpenAI-compatible API, using the `openai` SDK) - The leaflet image is sent directly to the vision-capable LLM, which reads the layout and returns clean, structured product data in one call.
+* **Catalog Matching:** RapidFuzz - Fuzzy string matching ranks the 5 closest catalog products for each extracted item, since LLM-extracted names rarely match catalog names exactly.
 * **Database:** SQLite (`data/app.db`) - Stores the catalog, each extraction run, its match candidates, and the HITL-confirmed selection.
 * **Frontend:** HTML5 & Tailwind CSS (via CDN) - Provides a modern, responsive UI without requiring a complex Node.js build pipeline.
 
@@ -20,41 +19,35 @@ This project is a full-stack technical solution designed to automate the extract
 ### 1. Project Architecture & Organization
 **Decision:** I implemented a modular folder structure, separating core logic into a `services/` directory and routing into `main.py`.
 
-**Why:** This follows the **Separation of Concerns** principle. By decoupling the OCR and LLM logic from the web framework, the system is easier to test and maintain. If the OCR engine needs to be upgraded in the future, only the service file requires modification.
+**Why:** This follows the **Separation of Concerns** principle. By decoupling the extraction logic from the web framework, the system is easier to test and maintain. If the extraction approach needs to change in the future, only the service file requires modification.
 
-### 2. Image Pre-processing
-**Decision:** I integrated the `Pillow` library to convert images to grayscale and increase contrast before sending them to the OCR engine.
+### 2. Vision LLM Extraction (instead of OCR + text parsing)
+**Decision:** The leaflet image is sent directly to Gemini's vision-capable endpoint in a single call, instead of running local OCR (Tesseract) to flatten it into text first and then structuring that text with a second LLM call.
 
-**Why:** Retail leaflets often use white text inside dark or red circles (as seen in the provided image). Standard OCR can struggle with these high-contrast areas. Pre-processing "flattens" the image, making character boundaries clearer for Tesseract.
+**Why:** Retail leaflets are non-linear (grid-based layouts) with prices often shown as large digits inside colored circles positioned near — but not always directly beside — the product they belong to. OCR discards that visual layout, leaving a second LLM pass to guess at pairings from text order alone. A vision LLM sees the actual image, so it can use spatial/visual cues (proximity, badge styling) to pair prices with products directly, in one step, with no dependency on a local OCR binary.
 
-### 3. OCR (Optical Character Recognition)
-**Decision:** I utilized Pytesseract with specific configuration flags (`--psm 3`) to handle automatic page segmentation.
-
-**Why:** Since retail leaflets are non-linear (grid-based layouts), the OCR needs to look for sparse text fragments rather than traditional top-to-bottom sentences.
-
-### 4. Semantic Parsing (LLM Layer)
+### 3. Semantic Parsing (LLM Layer)
 **Decision:** I chose an LLM over Regular Expressions (Regex) for data structuring.
 
-**Why:** Leaflets often place weights (e.g., "500g") closer to the product name than the actual price ($2.49). An LLM uses Natural Language Understanding to distinguish between a "unit of measurement" and a "monetary value," which is nearly impossible to do reliably with Regex in a noisy OCR environment.
+**Why:** Leaflets often place weights (e.g., "500g") closer to the product name than the actual price ($2.49). An LLM uses Natural Language Understanding to distinguish between a "unit of measurement" and a "monetary value," which is nearly impossible to do reliably with Regex.
 
-### 5. Catalog Matching
+### 4. Catalog Matching
 **Decision:** I used RapidFuzz to fuzzy-match each extracted product name against a product catalog (`data/catalog.json`, a synthetic catalog seeded into SQLite on startup) and return the top 5 ranked candidates per product.
 
-**Why:** OCR/LLM-extracted names rarely match catalog names verbatim (abbreviations, missing brand names, OCR noise), so exact lookups fail too often. Fuzzy string similarity is fast, free, and deterministic, and surfacing the top 5 (rather than a single best guess) leaves room for the human reviewer to pick correctly when the top match is wrong.
+**Why:** LLM-extracted names rarely match catalog names verbatim (abbreviations, missing brand names, formatting differences), so exact lookups fail too often. Fuzzy string similarity is fast, free, and deterministic, and surfacing the top 5 (rather than a single best guess) leaves room for the human reviewer to pick correctly when the top match is wrong.
 
-### 6. Human-in-the-Loop (HITL) Review & Persistence
+### 5. Human-in-the-Loop (HITL) Review & Persistence
 **Decision:** For each extracted product, the UI shows its top 5 catalog candidates (name, brand, price, match score) as selectable options. Confirming a selection calls `POST /select`, which writes the chosen catalog product back onto the extraction record in SQLite.
 
-**Why:** Automated matching alone isn't reliable enough for retail data (ambiguous OCR text, near-duplicate catalog entries). Keeping a human in the loop to confirm the match, with the result persisted to a database, models a realistic downstream workflow (e.g. inventory updates or price matching) rather than blindly trusting the top-ranked match.
+**Why:** Automated matching alone isn't reliable enough for retail data (ambiguous extraction, near-duplicate catalog entries). Keeping a human in the loop to confirm the match, with the result persisted to a database, models a realistic downstream workflow (e.g. inventory updates or price matching) rather than blindly trusting the top-ranked match.
 
 ---
 
 ## 📥 Installation & Setup
 
 ### 1. Prerequisites
-* **Tesseract OCR:** Must be installed on your operating system. On Windows, if it's not on your `PATH`, set the `TESSERACT_CMD` environment variable to its full path (e.g. `C:\Program Files\Tesseract-OCR\tesseract.exe`) — this is also the default location checked automatically. On Linux/Docker it's expected to already be on `PATH` (installed via `apt-get install tesseract-ocr`).
 * **Python 3.9+**
-* **Gemini API Key** (used via Gemini's OpenAI-compatible endpoint, through the `openai` SDK)
+* **Gemini API Key** (used via Gemini's OpenAI-compatible endpoint, through the `openai` SDK, for vision-based extraction)
 
 ### 2. Environment Setup
 ```bash
@@ -90,7 +83,7 @@ On first run, a SQLite database is created at `data/app.db` and seeded with the 
 
 ## ☁️ Deployment
 
-This app needs a **persistent container**, not a serverless function platform: it shells out to the `tesseract` OS binary (installed via `apt-get` in the [Dockerfile](Dockerfile)) and writes to a local SQLite file, neither of which a serverless runtime like Vercel supports (no system package installs, and the filesystem is read-only outside of an ephemeral `/tmp`). Deploy the Docker image instead, to a host that runs a long-lived container — e.g. **Render**, Railway, or Fly.io.
+This app now has no OS-level dependency (extraction happens via a vision LLM call instead of a local Tesseract binary), but it still writes to a local SQLite file (`data/app.db`) on startup and on every confirmed match. That still rules out a serverless platform like Vercel, whose filesystem is read-only outside of an ephemeral `/tmp` — `db.init_db()` would fail before a single request is served. Deploy the Docker image instead, to a host that runs a long-lived container with a real writable disk — e.g. **Render**, Railway, or Fly.io. (If you later want true serverless portability, the remaining step is swapping SQLite for a hosted database.)
 
 ### Deploying to Render
 1. Push this repo to GitHub (if not already).
