@@ -1,14 +1,16 @@
 from rapidfuzz import process, fuzz, utils
 
-from app.services.db import get_connection
+from app.services.db import get_connection, get_active_catalog_source
 
 
 def get_top_matches(raw_name: str, limit: int = 5) -> list:
-    """Fuzzy-matches raw_name against the catalog and returns the top `limit` candidates."""
+    """Fuzzy-matches raw_name against the active catalog and returns the top `limit` candidates."""
+    active_source = get_active_catalog_source()
     conn = get_connection()
     try:
         rows = conn.execute(
-            "SELECT id, name, brand, category, unit_size, price FROM catalog_products"
+            "SELECT id, name, brand, category, unit_size, price FROM catalog_products WHERE source = ?",
+            (active_source,),
         ).fetchall()
     finally:
         conn.close()

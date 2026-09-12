@@ -39,7 +39,8 @@
         <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 items-start">
 
             <!-- Left column: upload + preview -->
-            <div class="lg:sticky lg:top-24 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <div class="lg:sticky lg:top-24 space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                 <h2 class="text-sm font-semibold text-slate-900 mb-1">1. Upload leaflet</h2>
                 <p class="text-xs text-slate-500 mb-4">Select a leaflet image to extract and match its products.</p>
 
@@ -71,13 +72,39 @@
                 </button>
             </div>
 
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 class="text-sm font-semibold text-slate-900 mb-1">Catalog source</h2>
+                <p class="text-xs text-slate-500 mb-3">Matches are ranked against whichever catalog is active.</p>
+
+                <div id="catalogBadge" class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 mb-3">
+                    Loading catalog status&hellip;
+                </div>
+
+                <label class="block w-full text-xs font-medium text-slate-600 border border-slate-300 rounded-lg px-3 py-2 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/40 transition">
+                    Upload catalog CSV
+                    <input type="file" id="catalogFileInput" accept=".csv,text/csv" class="hidden" />
+                </label>
+                <p class="text-[11px] text-slate-400 mt-1.5">Requires <code>name</code> and <code>price</code> columns; <code>brand</code>, <code>category</code>, <code>unit_size</code>, <code>sku</code> optional.</p>
+
+                <button id="resetCatalogBtn" onclick="resetCatalog()" class="hidden mt-2 text-xs font-medium text-slate-400 hover:text-rose-600 transition">Reset to demo catalog</button>
+            </div>
+            </div>
+
             <!-- Right column: results -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 min-h-[420px]">
                 <div class="flex items-center justify-between mb-1">
                     <h2 class="text-sm font-semibold text-slate-900">2. Review &amp; confirm matches</h2>
                     <span id="progressLabel" class="text-xs font-medium text-slate-500"></span>
                 </div>
-                <p class="text-xs text-slate-500 mb-4">Pick the correct catalog match for each extracted product, then confirm.</p>
+                <div class="flex items-center justify-between mb-4">
+                    <p class="text-xs text-slate-500">Pick the correct catalog match for each extracted product, then confirm.</p>
+                    <a id="downloadCsvBtn" href="#" download class="hidden shrink-0 inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 ml-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 12m0 0l4.5-4.5M12 12V3" />
+                        </svg>
+                        Download CSV
+                    </a>
+                </div>
 
                 <div id="progressBarTrack" class="hidden h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mb-6">
                     <div id="progressBarFill" class="h-full bg-indigo-600 transition-all duration-300" style="width:0%"></div>
@@ -150,6 +177,63 @@
             fileNameLabel.textContent = '';
             btn.disabled = true;
         }
+
+        // --- Catalog source ---
+        function renderCatalogBadge(status) {
+            const badge = document.getElementById('catalogBadge');
+            const resetBtn = document.getElementById('resetCatalogBtn');
+            const isCustom = status.active_source === 'custom';
+
+            badge.className = `inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full mb-3 ${isCustom ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}`;
+            badge.textContent = isCustom
+                ? `Using: Custom catalog (${status.custom_count} products)`
+                : `Using: Demo catalog (${status.demo_count} products)`;
+            resetBtn.classList.toggle('hidden', !isCustom);
+        }
+
+        async function loadCatalogStatus() {
+            try {
+                const response = await fetch('/catalog/status');
+                if (!response.ok) throw new Error('Failed to load catalog status');
+                renderCatalogBadge(await response.json());
+            } catch (e) {
+                document.getElementById('catalogBadge').textContent = 'Catalog status unavailable';
+            }
+        }
+
+        async function resetCatalog() {
+            try {
+                const response = await fetch('/catalog/reset', { method: 'POST' });
+                if (!response.ok) throw new Error('Reset failed');
+                renderCatalogBadge(await response.json());
+                showToast('Switched to demo catalog.', 'success');
+            } catch (e) {
+                showToast('Error resetting catalog.');
+            }
+        }
+
+        document.getElementById('catalogFileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/catalog/upload', { method: 'POST', body: formData });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.detail || 'Upload failed');
+
+                renderCatalogBadge(result);
+                showToast(`Catalog uploaded: ${result.imported} products${result.skipped ? `, ${result.skipped} skipped` : ''}.`, 'success');
+            } catch (e) {
+                showToast(e.message || 'Error uploading catalog.');
+            } finally {
+                e.target.value = '';
+            }
+        });
+
+        loadCatalogStatus();
 
         // --- Results rendering ---
         function scoreBadge(score) {
@@ -261,12 +345,17 @@
                 container.innerHTML = data.items.map(renderItem).join('');
                 data.items.forEach((item) => highlightSelected(item.extracted_id));
                 updateProgress();
+
+                const downloadBtn = document.getElementById('downloadCsvBtn');
+                downloadBtn.href = `/leaflets/${data.leaflet_id}/export`;
+                downloadBtn.classList.remove('hidden');
             } catch (e) {
                 container.innerHTML = `
                     <div class="flex flex-col items-center justify-center text-center py-20 text-rose-400">
                         <p class="text-sm">Something went wrong processing this image.</p>
                     </div>`;
                 showToast('Error processing image.');
+                document.getElementById('downloadCsvBtn').classList.add('hidden');
             } finally {
                 btn.disabled = false;
                 btnSpinner.classList.add('hidden');

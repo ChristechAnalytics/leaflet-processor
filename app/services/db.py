@@ -13,7 +13,13 @@ CREATE TABLE IF NOT EXISTS catalog_products (
     brand TEXT,
     category TEXT,
     unit_size TEXT,
-    price REAL
+    price REAL,
+    source TEXT DEFAULT 'demo'
+);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
 );
 
 CREATE TABLE IF NOT EXISTS leaflets (
@@ -53,6 +59,9 @@ def init_db():
     conn = get_connection()
     try:
         conn.executescript(SCHEMA)
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(catalog_products)")}
+        if "source" not in columns:
+            conn.execute("ALTER TABLE catalog_products ADD COLUMN source TEXT DEFAULT 'demo'")
         conn.commit()
     finally:
         conn.close()
@@ -67,13 +76,77 @@ def seed_catalog_if_empty():
         with open(CATALOG_PATH, "r", encoding="utf-8") as f:
             catalog = json.load(f)
         conn.executemany(
-            """INSERT INTO catalog_products (id, sku, name, brand, category, unit_size, price)
-               VALUES (:id, :sku, :name, :brand, :category, :unit_size, :price)""",
+            """INSERT INTO catalog_products (id, sku, name, brand, category, unit_size, price, source)
+               VALUES (:id, :sku, :name, :brand, :category, :unit_size, :price, 'demo')""",
             catalog,
         )
         conn.commit()
     finally:
         conn.close()
+
+
+def get_active_catalog_source() -> str:
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT value FROM app_settings WHERE key = 'active_catalog_source'"
+        ).fetchone()
+        return row["value"] if row else "demo"
+    finally:
+        conn.close()
+
+
+def set_active_catalog_source(source: str):
+    conn = get_connection()
+    try:
+        conn.execute(
+            """INSERT INTO app_settings (key, value) VALUES ('active_catalog_source', ?)
+               ON CONFLICT(key) DO UPDATE SET value = excluded.value""",
+            (source,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_catalog_status() -> dict:
+    conn = get_connection()
+    try:
+        demo_count = conn.execute(
+            "SELECT COUNT(*) FROM catalog_products WHERE source = 'demo'"
+        ).fetchone()[0]
+        custom_count = conn.execute(
+            "SELECT COUNT(*) FROM catalog_products WHERE source = 'custom'"
+        ).fetchone()[0]
+        return {
+            "active_source": get_active_catalog_source(),
+            "demo_count": demo_count,
+            "custom_count": custom_count,
+        }
+    finally:
+        conn.close()
+
+
+def replace_custom_catalog(rows: list):
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM catalog_products WHERE source = 'custom'")
+        conn.executemany(
+            """INSERT INTO catalog_products (sku, name, brand, category, unit_size, price, source)
+               VALUES (:sku, :name, :brand, :category, :unit_size, :price, 'custom')""",
+            rows,
+        )
+        conn.execute(
+            """INSERT INTO app_settings (key, value) VALUES ('active_catalog_source', 'custom')
+               ON CONFLICT(key) DO UPDATE SET value = excluded.value"""
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def reset_to_demo_catalog():
+    set_active_catalog_source("demo")
 
 
 def create_leaflet(filename: str) -> int:
@@ -136,5 +209,32 @@ def select_match(extracted_id: int, catalog_product_id: int) -> dict:
         if row is None:
             raise ValueError(f"No extracted product {extracted_id} with a valid selection")
         return dict(row)
+    finally:
+        conn.close()
+
+
+def get_leaflet_export_rows(leaflet_id: int) -> list:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """SELECT ep.id AS extracted_id, ep.raw_name, ep.raw_price, ep.status,
+                      cp.sku, cp.name AS matched_name, cp.brand, cp.category,
+                      cp.unit_size, cp.price AS matched_price
+               FROM extracted_products ep
+               LEFT JOIN catalog_products cp ON cp.id = ep.selected_catalog_id
+               WHERE ep.leaflet_id = ?
+               ORDER BY ep.id""",
+            (leaflet_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def leaflet_exists(leaflet_id: int) -> bool:
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT 1 FROM leaflets WHERE id = ?", (leaflet_id,)).fetchone()
+        return row is not None
     finally:
         conn.close()

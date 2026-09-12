@@ -1,7 +1,7 @@
 # Retail Leaflet Data Extraction Pipeline
 
 ## 📌 Project Overview
-This project is a full-stack technical solution designed to automate the extraction of product information from unstructured retail leaflet images, match each extracted product against a catalog, and let a human confirm the correct match. It transforms raw image data into structured JSON, ranks the top 5 catalog candidates per product, and provides a human-in-the-loop (HITL) web interface for review and confirmation, with results persisted to a database.
+This project is a full-stack technical solution designed to automate the extraction of product information from unstructured retail leaflet images, match each extracted product against a catalog, and let a human confirm the correct match. It transforms raw image data into structured JSON, ranks the top 5 catalog candidates per product, and provides a human-in-the-loop (HITL) web interface for review and confirmation, with results persisted to a database and exportable as CSV.
 
 ---
 
@@ -32,9 +32,9 @@ This project is a full-stack technical solution designed to automate the extract
 **Why:** Leaflets often place weights (e.g., "500g") closer to the product name than the actual price ($2.49). An LLM uses Natural Language Understanding to distinguish between a "unit of measurement" and a "monetary value," which is nearly impossible to do reliably with Regex.
 
 ### 4. Catalog Matching
-**Decision:** I used RapidFuzz to fuzzy-match each extracted product name against a product catalog (`data/catalog.json`, a synthetic catalog seeded into SQLite on startup) and return the top 5 ranked candidates per product.
+**Decision:** I used RapidFuzz to fuzzy-match each extracted product name against a product catalog and return the top 5 ranked candidates per product. By default this is `data/catalog.json`, a synthetic catalog seeded into SQLite on startup — but a user can upload their own catalog as a CSV, which becomes the active catalog for matching until they switch back.
 
-**Why:** LLM-extracted names rarely match catalog names verbatim (abbreviations, missing brand names, formatting differences), so exact lookups fail too often. Fuzzy string similarity is fast, free, and deterministic, and surfacing the top 5 (rather than a single best guess) leaves room for the human reviewer to pick correctly when the top match is wrong.
+**Why:** LLM-extracted names rarely match catalog names verbatim (abbreviations, missing brand names, formatting differences), so exact lookups fail too often. Fuzzy string similarity is fast, free, and deterministic, and surfacing the top 5 (rather than a single best guess) leaves room for the human reviewer to pick correctly when the top match is wrong. Matching only creates real value once it's run against a catalog the user actually owns, so the demo catalog is a fallback/portfolio artifact rather than the intended end state — the "Catalog source" panel in the UI lets a user swap in their own product list without losing the ability to fall back to the demo one.
 
 ### 5. Human-in-the-Loop (HITL) Review & Persistence
 **Decision:** For each extracted product, the UI shows its top 5 catalog candidates (name, brand, price, match score) as selectable options. Confirming a selection calls `POST /select`, which writes the chosen catalog product back onto the extraction record in SQLite.
@@ -77,7 +77,10 @@ uvicorn app.main:app --reload
 http://127.0.0.1:8000
 ```
 
-On first run, a SQLite database is created at `data/app.db` and seeded with the synthetic catalog from `data/catalog.json`. Upload a leaflet image, review the top 5 catalog matches per extracted product, and click "Confirm match" to persist the selection back to the database.
+On first run, a SQLite database is created at `data/app.db` and seeded with the synthetic catalog from `data/catalog.json`. Upload a leaflet image, review the top 5 catalog matches per extracted product, click "Confirm match" to persist the selection back to the database, then use "Download CSV" (or `GET /leaflets/{leaflet_id}/export`) to export that leaflet's results — extracted name/price alongside the confirmed catalog match, brand, category, and SKU.
+
+### Using your own catalog
+The "Catalog source" panel lets you upload a CSV to match against instead of the demo catalog. Required columns: `name`, `price`. Optional: `brand`, `category`, `unit_size`, `sku` — extra columns are ignored, and rows missing a name or a parseable price are skipped (the upload response reports how many). Uploading replaces the previously uploaded catalog and immediately becomes the active one; "Reset to demo catalog" switches back without needing to re-upload later (your last-uploaded catalog is kept, not deleted). Equivalent endpoints: `GET /catalog/status`, `POST /catalog/upload` (multipart CSV), `POST /catalog/reset`.
 
 ---
 
