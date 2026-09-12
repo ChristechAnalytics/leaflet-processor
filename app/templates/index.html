@@ -3,69 +3,328 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
     <title>Leaflet Processor</title>
+    <style>
+        body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    </style>
 </head>
-<body class="bg-slate-50 font-sans p-10">
-    <div class="max-w-5xl mx-auto">
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-            <h1 class="text-2xl font-bold text-slate-800 mb-2">Product Extraction Pipeline</h1>
-            <p class="text-slate-500 mb-6">Upload a leaflet image to generate structured data.</p>
+<body class="bg-slate-50 text-slate-900">
 
-            <div class="flex items-center gap-4 mb-10">
-                <input type="file" id="fileInput" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
-                <button onclick="processImage()" id="btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-300 transition-all">
-                    Process Image
+    <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center gap-3">
+            <div class="h-9 w-9 shrink-0 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">LP</div>
+            <div class="min-w-0">
+                <h1 class="text-base font-semibold text-slate-900 leading-tight">Leaflet Processor</h1>
+                <p class="text-xs text-slate-500 leading-tight">Extraction &middot; catalog matching &middot; human review</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-6 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 items-start">
+
+            <!-- Left column: upload + preview -->
+            <div class="lg:sticky lg:top-24 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 class="text-sm font-semibold text-slate-900 mb-1">1. Upload leaflet</h2>
+                <p class="text-xs text-slate-500 mb-4">Select a leaflet image to extract and match its products.</p>
+
+                <div id="dropzone" class="relative border-2 border-dashed border-slate-300 rounded-xl aspect-[3/4] flex items-center justify-center text-center overflow-hidden transition hover:border-indigo-400 hover:bg-indigo-50/40">
+                    <input type="file" id="fileInput" accept="image/*" class="absolute inset-0 z-20 opacity-0 cursor-pointer" />
+
+                    <div id="dropzonePlaceholder" class="pointer-events-none flex flex-col items-center gap-2 px-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-9 w-9 text-slate-400">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 7.5m0 0L7.5 12m4.5-4.5v13.5" />
+                        </svg>
+                        <p class="text-sm font-medium text-slate-600">Click to upload or drag &amp; drop</p>
+                        <p class="text-xs text-slate-400">JPG or PNG</p>
+                    </div>
+
+                    <img id="previewImage" class="hidden absolute inset-0 z-10 h-full w-full object-cover" />
+                </div>
+
+                <div class="flex items-center justify-between mt-2 min-h-[1.25rem]">
+                    <p id="fileName" class="text-xs text-slate-500 truncate pr-2"></p>
+                    <button id="removeImageBtn" onclick="clearImage()" class="hidden shrink-0 text-xs font-medium text-slate-400 hover:text-rose-600 transition">Remove</button>
+                </div>
+
+                <button onclick="processImage()" id="btn" disabled class="mt-4 w-full inline-flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-all">
+                    <svg id="btnSpinner" class="hidden animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    <span id="btnLabel">Process image</span>
                 </button>
             </div>
 
-            <div class="overflow-hidden rounded-lg border border-slate-200">
-                <table class="min-w-full divide-y divide-slate-200">
-                    <thead class="bg-slate-100">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Product</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Price</th>
-                        </tr>
-                    </thead>
-                    <tbody id="resultsTable" class="divide-y divide-slate-200 bg-white">
-                        </tbody>
-                </table>
+            <!-- Right column: results -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 min-h-[420px]">
+                <div class="flex items-center justify-between mb-1">
+                    <h2 class="text-sm font-semibold text-slate-900">2. Review &amp; confirm matches</h2>
+                    <span id="progressLabel" class="text-xs font-medium text-slate-500"></span>
+                </div>
+                <p class="text-xs text-slate-500 mb-4">Pick the correct catalog match for each extracted product, then confirm.</p>
+
+                <div id="progressBarTrack" class="hidden h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mb-6">
+                    <div id="progressBarFill" class="h-full bg-indigo-600 transition-all duration-300" style="width:0%"></div>
+                </div>
+
+                <div id="resultsContainer" class="space-y-4">
+                    <div id="emptyState" class="flex flex-col items-center justify-center text-center py-20 text-slate-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-10 w-10">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 19.5h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z" />
+                        </svg>
+                        <p class="mt-3 text-sm">Upload a leaflet image to extract and match products.</p>
+                    </div>
+                </div>
             </div>
+
         </div>
-    </div>
+    </main>
+
+    <div id="toastContainer" class="fixed bottom-6 right-6 z-50 space-y-2"></div>
 
     <script>
+        let currentItems = [];
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.innerText = str ?? '';
+            return div.innerHTML;
+        }
+
+        function showToast(message, type = 'error') {
+            const toast = document.createElement('div');
+            const color = type === 'error' ? 'bg-rose-600' : 'bg-emerald-600';
+            toast.className = `${color} text-white text-sm font-medium px-4 py-3 rounded-lg shadow-lg transition-opacity`;
+            toast.textContent = message;
+            document.getElementById('toastContainer').appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- Image upload / preview ---
+        const fileInput = document.getElementById('fileInput');
+        const previewImage = document.getElementById('previewImage');
+        const dropzonePlaceholder = document.getElementById('dropzonePlaceholder');
+        const removeImageBtn = document.getElementById('removeImageBtn');
+        const fileNameLabel = document.getElementById('fileName');
+        const btn = document.getElementById('btn');
+
+        fileInput.addEventListener('dragover', (e) => e.preventDefault());
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const objectUrl = URL.createObjectURL(file);
+            previewImage.src = objectUrl;
+            previewImage.classList.remove('hidden');
+            dropzonePlaceholder.classList.add('hidden');
+            removeImageBtn.classList.remove('hidden');
+            fileNameLabel.textContent = file.name;
+            btn.disabled = false;
+        });
+
+        function clearImage() {
+            fileInput.value = '';
+            previewImage.src = '';
+            previewImage.classList.add('hidden');
+            dropzonePlaceholder.classList.remove('hidden');
+            removeImageBtn.classList.add('hidden');
+            fileNameLabel.textContent = '';
+            btn.disabled = true;
+        }
+
+        // --- Results rendering ---
+        function scoreBadge(score) {
+            let classes = 'bg-rose-100 text-rose-700';
+            if (score >= 85) classes = 'bg-emerald-100 text-emerald-700';
+            else if (score >= 60) classes = 'bg-amber-100 text-amber-700';
+            return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${classes}">${score}% match</span>`;
+        }
+
+        function renderCandidate(itemId, c, idx) {
+            return `
+                <label class="candidate-row flex items-center gap-3 border border-slate-200 rounded-lg p-3 cursor-pointer transition hover:border-indigo-300">
+                    <input type="radio" name="candidate-${itemId}" value="${c.catalog_product_id}" onchange="highlightSelected(${itemId})" ${idx === 0 ? 'checked' : ''} class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 shrink-0">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-slate-800 truncate">${escapeHtml(c.name)}</p>
+                        <p class="text-xs text-slate-500 truncate">${escapeHtml(c.brand || '—')}${c.category ? ' &middot; ' + escapeHtml(c.category) : ''}</p>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <p class="text-sm font-semibold text-slate-800">$${Number(c.price).toFixed(2)}</p>
+                        ${scoreBadge(c.score)}
+                    </div>
+                </label>`;
+        }
+
+        function renderItem(item) {
+            const candidateRows = (item.candidates || [])
+                .map((c, idx) => renderCandidate(item.extracted_id, c, idx))
+                .join('');
+
+            return `
+                <div class="border border-slate-200 rounded-xl overflow-hidden" id="item-${item.extracted_id}">
+                    <div class="flex items-start justify-between gap-4 px-5 py-4 bg-slate-50 border-b border-slate-100">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-slate-900 truncate">${escapeHtml(item.name)}</p>
+                            <p class="text-xs text-slate-500 mt-0.5">Extracted price <span class="font-medium text-slate-700">${escapeHtml(item.price)}</span></p>
+                        </div>
+                        <span class="status-badge inline-flex items-center gap-1.5 shrink-0 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Pending review
+                        </span>
+                    </div>
+                    <div class="p-4 space-y-2">
+                        ${candidateRows || '<p class="text-sm text-slate-400">No catalog matches found.</p>'}
+                    </div>
+                    <div class="px-4 pb-4 flex justify-end">
+                        <button onclick="confirmMatch(${item.extracted_id})" class="confirm-btn inline-flex items-center gap-1.5 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all">
+                            Confirm match
+                        </button>
+                    </div>
+                </div>`;
+        }
+
+        function highlightSelected(itemId) {
+            document.querySelectorAll(`input[name="candidate-${itemId}"]`).forEach((input) => {
+                const label = input.closest('.candidate-row');
+                label.classList.toggle('border-indigo-500', input.checked);
+                label.classList.toggle('bg-indigo-50/60', input.checked);
+                label.classList.toggle('ring-1', input.checked);
+                label.classList.toggle('ring-indigo-500', input.checked);
+            });
+        }
+
+        function updateProgress() {
+            const total = currentItems.length;
+            const confirmed = currentItems.filter((i) => i.confirmed).length;
+            const track = document.getElementById('progressBarTrack');
+            const fill = document.getElementById('progressBarFill');
+            const label = document.getElementById('progressLabel');
+
+            if (total === 0) {
+                track.classList.add('hidden');
+                label.textContent = '';
+                return;
+            }
+
+            track.classList.remove('hidden');
+            fill.style.width = `${(confirmed / total) * 100}%`;
+            label.textContent = `${confirmed} of ${total} confirmed`;
+        }
+
         async function processImage() {
-            const fileInput = document.getElementById('fileInput');
-            const btn = document.getElementById('btn');
-            const table = document.getElementById('resultsTable');
-            
-            if (!fileInput.files[0]) return alert("Select an image first!");
+            const container = document.getElementById('resultsContainer');
+            const btnLabel = document.getElementById('btnLabel');
+            const btnSpinner = document.getElementById('btnSpinner');
+
+            if (!fileInput.files[0]) return showToast('Select an image first.');
 
             btn.disabled = true;
-            btn.innerText = "Processing...";
-            table.innerHTML = "";
+            btnSpinner.classList.remove('hidden');
+            btnLabel.textContent = 'Processing...';
+            container.innerHTML = `
+                <div class="animate-pulse space-y-4">
+                    <div class="h-24 bg-slate-100 rounded-xl"></div>
+                    <div class="h-24 bg-slate-100 rounded-xl"></div>
+                    <div class="h-24 bg-slate-100 rounded-xl"></div>
+                </div>`;
 
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
 
             try {
                 const response = await fetch('/process', { method: 'POST', body: formData });
+                if (!response.ok) throw new Error('Processing failed');
                 const data = await response.json();
 
-                data.forEach(item => {
-                    const row = `
-                        <tr onclick="alert('Proceeding with: ' + '${item.name}')" class="hover:bg-blue-50 cursor-pointer group">
-                            <td class="px-6 py-4 text-sm text-slate-700 font-medium">${item.name}</td>
-                            <td class="px-6 py-4 text-sm text-green-600 font-bold">${item.price}</td>
-                        </tr>`;
-                    table.innerHTML += row;
-                });
+                currentItems = data.items.map((i) => ({ extracted_id: i.extracted_id, confirmed: false }));
+                container.innerHTML = data.items.map(renderItem).join('');
+                data.items.forEach((item) => highlightSelected(item.extracted_id));
+                updateProgress();
             } catch (e) {
-                alert("Error processing image.");
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center text-center py-20 text-rose-400">
+                        <p class="text-sm">Something went wrong processing this image.</p>
+                    </div>`;
+                showToast('Error processing image.');
             } finally {
                 btn.disabled = false;
-                btn.innerText = "Process Image";
+                btnSpinner.classList.add('hidden');
+                btnLabel.textContent = 'Process image';
+            }
+        }
+
+        async function confirmMatch(extractedId) {
+            const selected = document.querySelector(`input[name="candidate-${extractedId}"]:checked`);
+            if (!selected) return showToast('No candidate selected.');
+
+            try {
+                const response = await fetch('/select', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        extracted_id: extractedId,
+                        catalog_product_id: Number(selected.value)
+                    })
+                });
+                if (!response.ok) throw new Error('Selection failed');
+                const result = await response.json();
+
+                const card = document.getElementById(`item-${extractedId}`);
+                const badge = card.querySelector('.status-badge');
+                badge.className = 'status-badge inline-flex items-center gap-1.5 shrink-0 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700';
+                badge.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Matched: ${escapeHtml(result.catalog_name)}`;
+
+                card.querySelectorAll('input[type="radio"]').forEach((input) => {
+                    input.disabled = true;
+                    const label = input.closest('.candidate-row');
+                    if (input.checked) {
+                        label.classList.remove('border-indigo-500', 'bg-indigo-50/60', 'ring-indigo-500');
+                        label.classList.add('border-emerald-500', 'bg-emerald-50/60', 'ring-1', 'ring-emerald-500');
+                    } else {
+                        label.classList.add('opacity-50');
+                    }
+                });
+
+                const confirmBtn = card.querySelector('.confirm-btn');
+                confirmBtn.outerHTML = `
+                    <span class="inline-flex items-center gap-1.5 text-emerald-700 text-sm font-medium px-4 py-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Confirmed
+                    </span>`;
+
+                const entry = currentItems.find((i) => i.extracted_id === extractedId);
+                if (entry) entry.confirmed = true;
+                updateProgress();
+                showToast('Match confirmed.', 'success');
+            } catch (e) {
+                showToast('Error saving selection.');
             }
         }
     </script>

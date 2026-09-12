@@ -1,7 +1,18 @@
+import os
 import pytesseract
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 from PIL import Image, ImageOps, ImageEnhance
 import io
+
+# On Linux/Docker, tesseract is installed on PATH by apt and pytesseract finds it
+# automatically. On Windows it typically isn't, so allow overriding via env var,
+# falling back to the common Windows install location if present.
+_tesseract_cmd = os.getenv("TESSERACT_CMD")
+if not _tesseract_cmd and os.name == "nt":
+    _default_windows_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    if os.path.exists(_default_windows_path):
+        _tesseract_cmd = _default_windows_path
+if _tesseract_cmd:
+    pytesseract.pytesseract.tesseract_cmd = _tesseract_cmd
 
 def run_ocr(image_bytes: bytes) -> str:
     image = Image.open(io.BytesIO(image_bytes))

@@ -2,3 +2,4 @@
 leafletEnv/
 .vercel/
 __pycache__/
+data/app.db

@@ -1,14 +1,16 @@
 # Retail Leaflet Data Extraction Pipeline
 
 ## 📌 Project Overview
-This project is a full-stack technical solution designed to automate the extraction of product information from unstructured retail leaflet images. It transforms raw image data into structured JSON and provides a user-friendly web interface for data verification and interaction.
+This project is a full-stack technical solution designed to automate the extraction of product information from unstructured retail leaflet images, match each extracted product against a catalog, and let a human confirm the correct match. It transforms raw image data into structured JSON, ranks the top 5 catalog candidates per product, and provides a human-in-the-loop (HITL) web interface for review and confirmation, with results persisted to a database.
 
 ---
 
 ## 🛠️ The Tech Stack
 * **Backend:** FastAPI (Python) - Chosen for its high performance, native asynchronous support, and automatic OpenAPI documentation.
 * **OCR Engine:** Pytesseract (Tesseract OCR) - An industry-standard open-source engine used for initial text localization and character recognition.
-* **Data Structuring:** Gemini-3-flash-preview - Utilized as a "Semantic Brain" to parse messy OCR output into clean, structured data.
+* **Data Structuring:** Gemini-3-flash-preview (via its OpenAI-compatible API, using the `openai` SDK) - Utilized as a "Semantic Brain" to parse messy OCR output into clean, structured data.
+* **Catalog Matching:** RapidFuzz - Fuzzy string matching ranks the 5 closest catalog products for each extracted item, since leaflet OCR names rarely match catalog names exactly.
+* **Database:** SQLite (`data/app.db`) - Stores the catalog, each extraction run, its match candidates, and the HITL-confirmed selection.
 * **Frontend:** HTML5 & Tailwind CSS (via CDN) - Provides a modern, responsive UI without requiring a complex Node.js build pipeline.
 
 ---
@@ -35,19 +37,24 @@ This project is a full-stack technical solution designed to automate the extract
 
 **Why:** Leaflets often place weights (e.g., "500g") closer to the product name than the actual price ($2.49). An LLM uses Natural Language Understanding to distinguish between a "unit of measurement" and a "monetary value," which is nearly impossible to do reliably with Regex in a noisy OCR environment.
 
-### 5. Frontend Interaction
-**Decision:** I built a dynamic table with clickable rows using Tailwind CSS.
+### 5. Catalog Matching
+**Decision:** I used RapidFuzz to fuzzy-match each extracted product name against a product catalog (`data/catalog.json`, a synthetic catalog seeded into SQLite on startup) and return the top 5 ranked candidates per product.
 
-**Why:** Per the assessment requirements, this simulates a real-world "human-in-the-loop" workflow where a user can select specific extracted items for further downstream processing (like inventory updates or price matching).
+**Why:** OCR/LLM-extracted names rarely match catalog names verbatim (abbreviations, missing brand names, OCR noise), so exact lookups fail too often. Fuzzy string similarity is fast, free, and deterministic, and surfacing the top 5 (rather than a single best guess) leaves room for the human reviewer to pick correctly when the top match is wrong.
+
+### 6. Human-in-the-Loop (HITL) Review & Persistence
+**Decision:** For each extracted product, the UI shows its top 5 catalog candidates (name, brand, price, match score) as selectable options. Confirming a selection calls `POST /select`, which writes the chosen catalog product back onto the extraction record in SQLite.
+
+**Why:** Automated matching alone isn't reliable enough for retail data (ambiguous OCR text, near-duplicate catalog entries). Keeping a human in the loop to confirm the match, with the result persisted to a database, models a realistic downstream workflow (e.g. inventory updates or price matching) rather than blindly trusting the top-ranked match.
 
 ---
 
 ## 📥 Installation & Setup
 
 ### 1. Prerequisites
-* **Tesseract OCR:** Must be installed on your operating system, and also include the path (e.g [pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'])
+* **Tesseract OCR:** Must be installed on your operating system. On Windows, if it's not on your `PATH`, set the `TESSERACT_CMD` environment variable to its full path (e.g. `C:\Program Files\Tesseract-OCR\tesseract.exe`) — this is also the default location checked automatically. On Linux/Docker it's expected to already be on `PATH` (installed via `apt-get install tesseract-ocr`).
 * **Python 3.9+**
-* **OpenAI API Key**
+* **Gemini API Key** (used via Gemini's OpenAI-compatible endpoint, through the `openai` SDK)
 
 ### 2. Environment Setup
 ```bash
@@ -76,3 +83,5 @@ uvicorn app.main:app --reload
 # Open your browser to: 
 http://127.0.0.1:8000
 ```
+
+On first run, a SQLite database is created at `data/app.db` and seeded with the synthetic catalog from `data/catalog.json`. Upload a leaflet image, review the top 5 catalog matches per extracted product, and click "Confirm match" to persist the selection back to the database.

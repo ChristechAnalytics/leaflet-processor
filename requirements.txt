@@ -6,4 +6,4 @@ pillow
 jinja2
 openai
 python-dotenv
-google-generativeai
+rapidfuzz
