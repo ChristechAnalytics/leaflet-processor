@@ -314,6 +314,31 @@
             track.classList.remove('hidden');
             fill.style.width = `${(confirmed / total) * 100}%`;
             label.textContent = `${confirmed} of ${total} confirmed`;
+
+            if (confirmed === total) {
+                showConfirmedSummary();
+            }
+        }
+
+        function showConfirmedSummary() {
+            const container = document.getElementById('resultsContainer');
+            const rows = currentItems.map((item) => `
+                <div class="flex items-center justify-between gap-4 border border-emerald-200 bg-emerald-50/40 rounded-lg px-4 py-3">
+                    <div class="min-w-0">
+                        <p class="text-sm font-medium text-slate-800 truncate">${escapeHtml(item.matchedName)}</p>
+                        <p class="text-xs text-slate-500 truncate">${escapeHtml(item.brand || '—')} &middot; extracted as &ldquo;${escapeHtml(item.name)}&rdquo;</p>
+                    </div>
+                    <p class="text-sm font-semibold text-slate-800 shrink-0">$${Number(item.matchedPrice).toFixed(2)}</p>
+                </div>`).join('');
+
+            container.innerHTML = `
+                <div class="flex flex-col items-center text-center py-4 mb-2 text-emerald-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-8 w-8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="text-sm font-semibold mt-1">All products confirmed</p>
+                </div>
+                <div class="space-y-2">${rows}</div>`;
         }
 
         async function processImage() {
@@ -341,7 +366,7 @@
                 if (!response.ok) throw new Error('Processing failed');
                 const data = await response.json();
 
-                currentItems = data.items.map((i) => ({ extracted_id: i.extracted_id, confirmed: false }));
+                currentItems = data.items.map((i) => ({ extracted_id: i.extracted_id, name: i.name, confirmed: false }));
                 container.innerHTML = data.items.map(renderItem).join('');
                 data.items.forEach((item) => highlightSelected(item.extracted_id));
                 updateProgress();
@@ -409,7 +434,12 @@
                     </span>`;
 
                 const entry = currentItems.find((i) => i.extracted_id === extractedId);
-                if (entry) entry.confirmed = true;
+                if (entry) {
+                    entry.confirmed = true;
+                    entry.matchedName = result.catalog_name;
+                    entry.brand = result.brand;
+                    entry.matchedPrice = result.catalog_price;
+                }
                 updateProgress();
                 showToast('Match confirmed.', 'success');
             } catch (e) {

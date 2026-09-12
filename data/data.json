@@ -1,54 +1,22 @@
 [
     {
-        "name": "Aussie Asparagus",
-        "price": "$2.49"
-    },
-    {
-        "name": "West Australian Brussels Sprouts 500g Pack",
-        "price": "$3.49"
-    },
-    {
-        "name": "West Australian Strawberries 250g Pack",
-        "price": "$2.49"
-    },
-    {
-        "name": "West Australian Sweet Corn 3 Pack",
-        "price": "$3.99"
-    },
-    {
-        "name": "Australian Blueberries 125g Pack",
-        "price": "$3.99"
-    },
-    {
-        "name": "West Australian White Flat Mushrooms 375g Pack",
-        "price": "$4.99"
-    },
-    {
-        "name": "Freedom Farms Marinated RSPCA Approved Chicken Breast Steaks 400g",
-        "price": "$7.49"
-    },
-    {
-        "name": "Schnits Fine Foods Crumbed Chicken Tenderloins 400g",
-        "price": "$8.49"
-    },
-    {
-        "name": "Ocean King Smoked Salmon 3 x 50g",
+        "name": "Schab wieprzowy bez ko\u015bci",
         "price": "$8.99"
     },
     {
-        "name": "The Fishmonger Fresh Tasmanian Skin On Salmon Fillets 6pk/720g",
-        "price": "$24.99"
+        "name": "Polska cebula \u017c\u00f3\u0142ta 5 kg opakowanie",
+        "price": "$7.99"
     },
     {
-        "name": "Arnott's Tim Tam 175g/200g Chewy Caramel or Double Coat",
-        "price": "$2.49"
+        "name": "Polskie ziemniaki jadalne 6 kg opakowanie",
+        "price": "$3.99"
     },
     {
-        "name": "Ohilio Canola Oil or Sunflower Oil Blended with Extra Virgin Olive Oil 1L",
-        "price": "$7.59"
+        "name": "Kaczka tuszka",
+        "price": "$8.99"
     },
     {
-        "name": "Coca-Cola Classic or Zero Sugar 10 x 375ml",
-        "price": "$9.49"
+        "name": "PEPSI, PEPSI ZERO Nap\u00f3j gazowany 4 x 2 l opakowanie",
+        "price": "$23.96"
     }
 ]

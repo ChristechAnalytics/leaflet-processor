@@ -37,9 +37,9 @@ This project is a full-stack technical solution designed to automate the extract
 **Why:** LLM-extracted names rarely match catalog names verbatim (abbreviations, missing brand names, formatting differences), so exact lookups fail too often. Fuzzy string similarity is fast, free, and deterministic, and surfacing the top 5 (rather than a single best guess) leaves room for the human reviewer to pick correctly when the top match is wrong. Matching only creates real value once it's run against a catalog the user actually owns, so the demo catalog is a fallback/portfolio artifact rather than the intended end state — the "Catalog source" panel in the UI lets a user swap in their own product list without losing the ability to fall back to the demo one.
 
 ### 5. Human-in-the-Loop (HITL) Review & Persistence
-**Decision:** For each extracted product, the UI shows its top 5 catalog candidates (name, brand, price, match score) as selectable options. Confirming a selection calls `POST /select`, which writes the chosen catalog product back onto the extraction record in SQLite.
+**Decision:** For each extracted product, the UI shows its top 5 catalog candidates (name, brand, price, match score) as selectable options. Confirming a selection calls `POST /select`, which writes the chosen catalog product back onto the extraction record in SQLite. Once every product in the batch has been confirmed, the review UI collapses into a clean, read-only summary of the confirmed matches.
 
-**Why:** Automated matching alone isn't reliable enough for retail data (ambiguous extraction, near-duplicate catalog entries). Keeping a human in the loop to confirm the match, with the result persisted to a database, models a realistic downstream workflow (e.g. inventory updates or price matching) rather than blindly trusting the top-ranked match.
+**Why:** Automated matching alone isn't reliable enough for retail data (ambiguous extraction, near-duplicate catalog entries). Keeping a human in the loop to confirm the match, with the result persisted to a database, models a realistic downstream workflow (e.g. inventory updates or price matching) rather than blindly trusting the top-ranked match. Collapsing to a summary once everything is confirmed signals the review step is done, instead of leaving a wall of now-irrelevant candidate lists on screen.
 
 ---
 
